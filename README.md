@@ -1,26 +1,185 @@
-# 小白搜盘（fn-seekbox）
+# 小白搜盘
 
-飞牛 fnOS 原生应用：在 NAS 上搜索百度、阿里云盘、夸克、天翼、UC、115、迅雷、123 等网盘链接。
+在飞牛 fnOS 上使用的网盘资源搜索应用。安装后点击桌面图标即可搜索，支持百度、阿里云盘、夸克、天翼、UC、115、迅雷、123 等常见网盘链接。
 
-- 包名：`fn-seekbox`
-- 显示名：小白搜盘
-- 仓库：https://github.com/kidoneself/fn-seekbox
+| 项目 | 说明 |
+| --- | --- |
+| 显示名 | 小白搜盘 |
+| 包名 | `fn-seekbox` |
+| 当前版本 | 1.0.0 |
+| 平台 | x86（amd64） |
+| 默认端口 | 12668 |
+| 仓库 | https://github.com/kidoneself/fn-seekbox |
 
-安装后点击桌面图标即可使用。默认端口 `12668`。
+---
 
-## 目录
+## 特性
+
+- **原生 FPK**：不依赖 Docker，直接运行在 fnOS 应用中心
+- **插件搜索**：预置 26 个国内可直连插件，安装即可用
+- **墨金界面**：深色主题 + 金色点缀，搜索与来源配置清晰分离
+- **来源管理**：插件勾选、连通性双点检测（网络 / 试搜）、链接检测开关
+- **多网盘结果**：按网盘类型分组展示，支持导出 JSON / TXT
+- **安全运行**：以应用用户（`package`）运行，非 root
+
+---
+
+## 系统要求
+
+- 飞牛 fnOS **1.1.8** 及以上
+- **x86 / amd64** NAS（暂不支持 ARM）
+- 可访问外网的插件站点（可选配置 HTTP/SOCKS5 代理）
+
+---
+
+## 安装
+
+### 方式一：安装 FPK（推荐）
+
+1. 下载 `fn-seekbox-1.0.0.fpk`
+2. 打开 **应用中心** → **手动安装**，选择 FPK 文件
+3. 安装向导里确认端口（默认 `12668`）；不需要代理可留空
+4. 安装完成后，在桌面点击 **小白搜盘** 图标
+
+### 方式二：源码目录本地安装（开发调试）
+
+将项目目录上传到 NAS 后：
+
+```bash
+cd /path/to/fn-seekbox
+chmod +x cmd/* app/bin/seekbox app/bin/gateway.py
+
+# 可选：用 config.env 跳过向导
+sudo appcenter-cli install-local --env config.env
+```
+
+访问：`http://<NAS-IP>:12668`
+
+---
+
+## 使用说明
+
+1. 打开应用，输入关键词搜索
+2. 点击顶栏 **来源**，勾选要使用的搜索插件
+3. 绿点 / 黄点 / 红点表示插件连通与试搜状态；可点 **重新检测**
+4. **检测** 页签可开关链接有效性检测（默认关闭，开启后自动检测可见结果）
+5. 搜索结果按网盘类型分组，可复制链接或导出
+
+---
+
+## 开发与构建
+
+### 改前端界面
+
+前端源码在 `frontend/`（Vue 3 + Vite + Tailwind）。
+
+```bash
+cd frontend
+npm install
+npm run dev          # 本地预览
+npm run build        # 构建
+cp -R dist/* ../app/web/
+```
+
+改完 `app/web/` 后，在 NAS 上重启应用使静态页生效：
+
+```bash
+sudo appcenter-cli stop fn-seekbox
+sudo appcenter-cli start fn-seekbox
+```
+
+### 改后端 / 网关
+
+- 后端二进制：`app/bin/seekbox`（内网 `127.0.0.1:18888`）
+- Python 网关：`app/bin/gateway.py`（对外端口 + 静态页 + API 反代）
+- 生命周期脚本：`cmd/main`
+
+---
+
+## 打包 FPK
+
+本机需安装 [fnpack](https://static2.fnnas.com/fnpack/)。项目自带 `pack.sh`，会在临时目录里只复制打包所需文件，避免把 `node_modules`、旧 `.fpk` 等打进去。
+
+```bash
+# 若刚改过前端，先构建并同步
+cd frontend && npm run build && cp -R dist/* ../app/web/ && cd ..
+
+# 打包
+./pack.sh
+# 输出：fn-seekbox-1.0.0.fpk
+```
+
+---
+
+## 目录结构
 
 ```
 fn-seekbox/
-├── manifest
-├── ICON.PNG / ICON_256.PNG
-├── app/bin/seekbox          # 后端
-├── app/bin/gateway.py       # 静态页 + API 反代
-├── app/web/                 # 前端构建产物
-├── frontend/                # Vue 源码（改界面后 npm run build）
-├── cmd/                     # 飞牛生命周期脚本
-├── config/                  # privilege / resource
-└── wizard/                  # 安装向导
+├── manifest              # 应用元数据（名称、版本、changelog）
+├── ICON.PNG              # 64×64 图标
+├── ICON_256.PNG          # 256×256 图标
+├── pack.sh               # 干净目录打包脚本
+├── config.env            # 本地 install-local 测试用
+├── app/
+│   ├── bin/
+│   │   ├── seekbox       # 搜索后端（amd64）
+│   │   └── gateway.py    # Web 网关
+│   ├── web/              # 前端构建产物（打进 FPK）
+│   └── ui/               # 桌面图标配置
+├── frontend/             # Vue 源码（开发用，不打进 FPK）
+├── cmd/                  # 安装 / 升级 / 卸载 / 启停脚本
+├── config/
+│   ├── privilege         # run-as: package
+│   └── resource          # 原生应用，无 docker-project
+└── wizard/               # 安装 / 升级 / 卸载向导
 ```
 
-不要把 `frontend/node_modules` 打进 FPK。
+---
+
+## 配置
+
+安装向导可配置：
+
+| 变量 | 说明 | 默认 |
+| --- | --- | --- |
+| `APP_PORT` | Web 访问端口 | 12668 |
+| `PROXY` | 出站代理（可选） | 空 |
+
+应用数据目录（fnOS 典型路径）：
+
+- 程序：`/vol1/@appcenter/fn-seekbox/`
+- 数据：`/vol1/@appdata/fn-seekbox/`
+- 后端日志：`.../data/logs/backend/seekbox.log`
+- 网关日志：`.../data/logs/gateway.log`
+- 应用日志：`.../info.log`
+
+---
+
+## 常见问题
+
+**装完一直「启动中」**
+
+- 检查端口是否被占用：`ss -lptn | grep 12668`
+- 查看 `info.log` 与 `seekbox.log` 是否有启动超时或权限错误
+
+**搜不到结果**
+
+- 打开 **来源**，确认插件已勾选且检测不是全红
+- NAS 需能访问对应插件站点；内网受限时可配置 `PROXY`
+
+**卸载后还有数据**
+
+- 卸载向导若选了「保留数据」，缓存与日志会留在 `@appdata/fn-seekbox`
+
+---
+
+## 免责声明
+
+本项目仅供学习研究使用，请勿用于任何盈利或违法用途。搜索结果来自第三方插件站点，请遵守当地法律法规与网盘服务条款。
+
+---
+
+## 链接
+
+- 项目仓库：https://github.com/kidoneself/fn-seekbox
+- 飞牛开发者文档：https://developer.fnnas.com

@@ -2,7 +2,7 @@
   <div v-if="visible" class="login-overlay" @click.self="handleOverlayClick">
     <div class="login-dialog">
       <div class="login-header">
-        <h2>🔐 登录 PanSou</h2>
+        <h2>登录小白搜盘</h2>
         <p>请输入您的账号和密码</p>
       </div>
       

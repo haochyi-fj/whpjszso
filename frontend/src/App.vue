@@ -6,15 +6,10 @@ import SearchForm from '@/components/SearchForm.vue';
 import ResultTabs from '@/components/ResultTabs.vue';
 import SearchStats from '@/components/SearchStats.vue';
 import SearchConfig from '@/components/SearchConfig.vue';
-import ApiDocs from '@/components/ApiDocs.vue';
 import LoginDialog from '@/components/LoginDialog.vue';
-import QQPDManager from '@/components/QQPDManager.vue';
-import AccountCenter from '@/components/AccountCenter.vue';
-import GyingManager from '@/components/GyingManager.vue';
-import PanlianManager from '@/components/PanlianManager.vue';
-import WeiboManager from '@/components/WeiboManager.vue';
 import ExportResultsModal from '@/components/ExportResultsModal.vue';
 import { getDiskTypeName } from '@/utils/diskTypes';
+import { loadLocal, saveLocal } from '@/utils/storage';
 
 // 后端健康状态缓存（应用启动时获取一次）
 const backendHealth = ref<HealthStatus | null>(null);
@@ -54,7 +49,7 @@ const exportSettings = ref<ExportSettings>({
   allDiskTypesSelected: true
 });
 
-const EXPORT_SETTINGS_STORAGE_KEY = 'pansou_export_settings';
+const EXPORT_SETTINGS_STORAGE_KEY = 'export_settings';
 
 // 是否已经执行过搜索
 const hasSearched = ref(false);
@@ -74,71 +69,15 @@ const exportableDiskTypes = computed(() => {
 let forceRefreshPending = false;
 
 // 当前页面状态
-const currentPage = ref<'search' | 'status' | 'docs' | 'accounts' | 'qqpd' | 'gying' | 'panlian' | 'weibo'>('search');
+const currentPage = ref<'search' | 'status'>('search');
 
-// 登录状态
 const showLogin = ref(false);
 const isAuthenticated = ref(false);
 const currentUsername = ref('');
 
-// QQPD插件状态
-const isQQPDEnabled = ref(false);
-
-// Gying插件状态
-const isGyingEnabled = ref(false);
-
-// 盘链插件状态
-const isPanlianEnabled = ref(false);
-
-// Weibo插件状态
-const isWeiboEnabled = ref(false);
-
-// 检查是否有需要账号管理的服务
-const hasAccountServices = computed(() => false);
-
-// 页面切换
 const switchToStatus = () => {
   currentPage.value = 'status';
 };
-
-const switchToDocs = () => {
-  currentPage.value = 'docs';
-};
-
-const switchToAccounts = () => {
-  currentPage.value = 'accounts';
-};
-
-const switchToQQPD = () => {
-  currentPage.value = 'qqpd';
-};
-
-const switchToGying = () => {
-  currentPage.value = 'gying';
-};
-
-const switchToPanlian = () => {
-  currentPage.value = 'panlian';
-};
-
-const switchToWeibo = () => {
-  currentPage.value = 'weibo';
-};
-
-// 从账号中心导航到具体服务
-const handleAccountNavigate = (service: 'qqpd' | 'gying' | 'panlian' | 'weibo') => {
-  if (service === 'qqpd') {
-    switchToQQPD();
-  } else if (service === 'gying') {
-    switchToGying();
-  } else if (service === 'panlian') {
-    switchToPanlian();
-  } else if (service === 'weibo') {
-    switchToWeibo();
-  }
-};
-
-
 
 // 初始化后端健康状态（应用启动时调用一次）
 const initBackendHealth = async () => {
@@ -153,7 +92,7 @@ const initBackendHealth = async () => {
 // 检查配置（优先使用用户设置，否则使用后端默认缓存）
 const checkConfig = () => {
   try {
-    const savedPlugins = localStorage.getItem('pansou_plugins');
+    const savedPlugins = loadLocal('plugins');
     
     // 如果用户已手动设置，使用用户设置
     if (savedPlugins !== null) {
@@ -216,9 +155,9 @@ const handleSearch = async (params: SearchParams) => {
     
     // 如果同时启用了TG和插件，立即发起后台预热搜索（忽略结果）
     if (hasChannels && hasPlugins) {
-      const preloadParams: SearchParams = { 
+      const preloadParams: SearchParams = {
         ...lastSearchParams.value,
-        src: 'all'  // 后台预热搜索使用 all
+        src: 'plugin' // 后台预热搜索也只用插件
       };
       
       // 后台预热搜索，仅用于触发后端插件异步缓存，不处理结果
@@ -363,7 +302,7 @@ const updateSearchResults = (response: SearchResponse) => {
 
 const loadExportSettings = () => {
   try {
-    const saved = localStorage.getItem(EXPORT_SETTINGS_STORAGE_KEY);
+    const saved = loadLocal(EXPORT_SETTINGS_STORAGE_KEY);
     if (!saved) return;
 
     const parsed = JSON.parse(saved);
@@ -387,7 +326,7 @@ const loadExportSettings = () => {
 
 const persistExportSettings = () => {
   try {
-    localStorage.setItem(EXPORT_SETTINGS_STORAGE_KEY, JSON.stringify(exportSettings.value));
+    saveLocal(EXPORT_SETTINGS_STORAGE_KEY, JSON.stringify(exportSettings.value));
   } catch (error) {
     console.error('保存导出设置失败:', error);
   }
@@ -659,10 +598,10 @@ const handleExportConfirm = () => {
 
   if (exportSettings.value.format === 'json') {
     const content = buildJsonExportContent(rows);
-    downloadContent(content, `pansou-${keyword}-${timestamp}.json`, 'application/json');
+    downloadContent(content, `xiaobaisoupan-${keyword}-${timestamp}.json`, 'application/json');
   } else {
     const content = buildTxtExportContent(rows);
-    downloadContent(content, `pansou-${keyword}-${timestamp}.txt`, 'text/plain');
+    downloadContent(content, `xiaobaisoupan-${keyword}-${timestamp}.txt`, 'text/plain');
   }
 
   closeExportModal();
@@ -701,26 +640,9 @@ watch(
   { deep: true }
 );
 
-// 根据配置计算第二次、第三次搜索的src参数
-const calculateSrcForFullSearch = (): 'all' | 'tg' | 'plugin' => {
-  try {
-    const config = checkConfig();
-    const hasChannels = config.channels.length > 0;
-    const hasPlugins = config.plugins.length > 0;
-    
-    // 根据完整配置决定src
-    if (hasChannels && hasPlugins) {
-      return 'all';     // 都有，使用all（第一次已用tg，现在搜索全部）
-    } else if (!hasChannels && hasPlugins) {
-      return 'plugin';  // 只有插件
-    } else if (hasChannels && !hasPlugins) {
-      return 'tg';      // 只有TG频道（理论上不应该走到这里，因为只有TG时不会有后续搜索）
-    }
-    return 'all';       // 默认
-  } catch (err) {
-    console.error('计算src参数失败:', err);
-    return 'all';
-  }
+// 插件-only：后续搜索固定只走 plugin
+const calculateSrcForFullSearch = (): 'plugin' => {
+  return 'plugin';
 };
 
 // 开始第二次搜索
@@ -982,154 +904,6 @@ const handleLogout = async () => {
   }
 };
 
-// 检查QQPD插件是否显示（后端支持时默认显示，除非用户主动禁用）
-const checkQQPDPlugin = () => {
-  try {
-    // 1. 检查后端是否支持QQPD（使用缓存的健康状态）
-    const backendSupportsQQPD = backendHealth.value?.plugins?.includes('qqpd') || false;
-    
-    // 2. 如果后端不支持，直接隐藏
-    if (!backendSupportsQQPD) {
-      isQQPDEnabled.value = false;
-      return;
-    }
-    
-    // 3. 检查用户配置
-    try {
-      const savedPlugins = localStorage.getItem('pansou_plugins');
-      
-      if (savedPlugins === null) {
-        // 用户从未保存过配置，默认启用（后端支持即显示）
-        isQQPDEnabled.value = true;
-      } else {
-        // 用户保存过配置，按用户配置来
-        const plugins = JSON.parse(savedPlugins);
-        isQQPDEnabled.value = Array.isArray(plugins) && plugins.includes('qqpd');
-      }
-    } catch (err) {
-      console.error('读取用户插件配置失败:', err);
-      // 解析失败时，默认启用
-      isQQPDEnabled.value = true;
-    }
-  } catch (error) {
-    console.error('检查QQPD插件失败:', error);
-    isQQPDEnabled.value = false;
-  }
-};
-
-// 检查Gying插件是否启用
-const checkGyingPlugin = () => {
-  try {
-    // 1. 检查后端是否支持Gying（使用缓存的健康状态）
-    const backendSupportsGying = backendHealth.value?.plugins?.includes('gying') || false;
-    
-    // 2. 如果后端不支持，直接隐藏
-    if (!backendSupportsGying) {
-      isGyingEnabled.value = false;
-      return;
-    }
-    
-    // 3. 检查用户配置
-    try {
-      const savedPlugins = localStorage.getItem('pansou_plugins');
-      
-      if (savedPlugins === null) {
-        // 用户从未保存过配置，默认启用（后端支持即显示）
-        isGyingEnabled.value = true;
-      } else {
-        // 用户保存过配置，按用户配置来
-        const plugins = JSON.parse(savedPlugins);
-        isGyingEnabled.value = Array.isArray(plugins) && plugins.includes('gying');
-      }
-    } catch (err) {
-      console.error('读取用户插件配置失败:', err);
-      // 解析失败时，默认启用
-      isGyingEnabled.value = true;
-    }
-  } catch (error) {
-    console.error('检查Gying插件失败:', error);
-    isGyingEnabled.value = false;
-  }
-};
-
-// 检查盘链插件是否启用
-const checkPanlianPlugin = () => {
-  try {
-    const backendSupportsPanlian = backendHealth.value?.plugins?.includes('panlian') || false;
-
-    if (!backendSupportsPanlian) {
-      isPanlianEnabled.value = false;
-      return;
-    }
-
-    try {
-      const savedPlugins = localStorage.getItem('pansou_plugins');
-
-      if (savedPlugins === null) {
-        isPanlianEnabled.value = true;
-      } else {
-        const plugins = JSON.parse(savedPlugins);
-        isPanlianEnabled.value = Array.isArray(plugins) && plugins.includes('panlian');
-      }
-    } catch (err) {
-      console.error('读取用户插件配置失败:', err);
-      isPanlianEnabled.value = true;
-    }
-  } catch (error) {
-    console.error('检查Panlian插件失败:', error);
-    isPanlianEnabled.value = false;
-  }
-};
-
-// 检查Weibo插件是否启用
-const checkWeiboPlugin = () => {
-  try {
-    const backendSupportsWeibo = backendHealth.value?.plugins?.includes('weibo') || false;
-    
-    if (!backendSupportsWeibo) {
-      isWeiboEnabled.value = false;
-      return;
-    }
-    
-    try {
-      const savedPlugins = localStorage.getItem('pansou_plugins');
-      
-      if (savedPlugins === null) {
-        isWeiboEnabled.value = true;
-      } else {
-        const plugins = JSON.parse(savedPlugins);
-        isWeiboEnabled.value = Array.isArray(plugins) && plugins.includes('weibo');
-      }
-    } catch (err) {
-      console.error('读取用户插件配置失败:', err);
-      isWeiboEnabled.value = true;
-    }
-  } catch (error) {
-    console.error('检查Weibo插件失败:', error);
-    isWeiboEnabled.value = false;
-  }
-};
-
-// 监听localStorage变化，当用户配置改变时更新插件状态
-const handleStorageChange = (e: StorageEvent) => {
-  // 只关心插件配置的变化
-  if (e.key === 'pansou_plugins') {
-    checkQQPDPlugin();
-    checkGyingPlugin();
-    checkPanlianPlugin();
-    checkWeiboPlugin();
-  }
-};
-
-// 自定义事件：当用户在配置页保存设置时触发
-const handleConfigSaved = () => {
-  checkQQPDPlugin();
-  checkGyingPlugin();
-  checkPanlianPlugin();
-  checkWeiboPlugin();
-};
-
-// 强制刷新处理
 const handleForceRefresh = () => {
   if (loading.value) return;
   forceRefreshPending = true;
@@ -1148,15 +922,7 @@ onMounted(async () => {
   
   // 然后初始化其他状态
   checkAuth();
-  checkQQPDPlugin();
-  checkGyingPlugin();
-  checkPanlianPlugin();
-  checkWeiboPlugin();
-  
-  // 监听事件
   window.addEventListener('auth:required', handleAuthRequired);
-  window.addEventListener('storage', handleStorageChange);
-  window.addEventListener('config:saved', handleConfigSaved);
   window.addEventListener('resize', syncMobileSearchLayout);
 });
 
@@ -1164,8 +930,6 @@ onUnmounted(() => {
   // 确保在组件卸载时清理所有定时器和事件监听
   stopUpdate();
   window.removeEventListener('auth:required', handleAuthRequired);
-  window.removeEventListener('storage', handleStorageChange);
-  window.removeEventListener('config:saved', handleConfigSaved);
   window.removeEventListener('resize', syncMobileSearchLayout);
 });
 </script>
@@ -1216,20 +980,6 @@ onUnmounted(() => {
               </svg>
             </span>
             <span class="nav-text">来源</span>
-          </button>
-          <button 
-            v-if="hasAccountServices"
-            @click="switchToAccounts"
-            class="nav-button"
-            :class="{ 'active': currentPage === 'accounts' || currentPage === 'qqpd' || currentPage === 'gying' || currentPage === 'panlian' || currentPage === 'weibo' }"
-            title="账号管理"
-          >
-            <span class="nav-icon">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-              </svg>
-            </span>
-            <span class="nav-text">账号</span>
           </button>
           <button 
             v-if="isAuthenticated"
@@ -1324,38 +1074,6 @@ onUnmounted(() => {
       <!-- 配置页面 -->
       <div v-else-if="currentPage === 'status'" class="status-page">
         <SearchConfig :backend-health="backendHealth" />
-      </div>
-      
-      <!-- API文档页面 -->
-      <div v-else-if="currentPage === 'docs'" class="docs-page">
-        <ApiDocs />
-      </div>
-      
-      <!-- 账号管理中心页面 -->
-      <div v-else-if="currentPage === 'accounts'" class="accounts-page">
-        <AccountCenter 
-          :backend-health="backendHealth"
-          @navigate="handleAccountNavigate"
-        />
-      </div>
-      
-      <!-- QQ频道管理页面 -->
-      <div v-else-if="currentPage === 'qqpd'" class="qqpd-page">
-        <QQPDManager @back-to-center="switchToAccounts" />
-      </div>
-      
-      <!-- 观影管理页面 -->
-      <div v-else-if="currentPage === 'gying'" class="gying-page">
-        <GyingManager @back-to-center="switchToAccounts" />
-      </div>
-
-      <div v-else-if="currentPage === 'panlian'" class="panlian-page">
-        <PanlianManager @back-to-center="switchToAccounts" />
-      </div>
-      
-      <!-- 微博管理页面 -->
-      <div v-else-if="currentPage === 'weibo'" class="weibo-page">
-        <WeiboManager @back-to-center="switchToAccounts" />
       </div>
     </main>
   </div>

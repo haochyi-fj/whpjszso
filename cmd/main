@@ -11,8 +11,8 @@ BIN="${TRIM_APPDEST}/bin/seekbox"
 GATEWAY="${TRIM_APPDEST}/bin/gateway.py"
 WEBROOT="${TRIM_APPDEST}/web"
 
-PANSOU_HOST="127.0.0.1"
-PANSOU_PORT="18888"
+BACKEND_HOST="127.0.0.1"
+BACKEND_PORT="18888"
 APP_PORT="${APP_PORT:-12668}"
 
 # 飞牛向导空字符串不会用镜像默认值；bash 的 :- 会。这 26 个是 NAS 直连实测能注册的。
@@ -43,8 +43,9 @@ export_runtime_env() {
         ENABLED_PLUGINS="${DEFAULT_PLUGINS}"
     fi
     export ENABLED_PLUGINS
-    export PORT="${PANSOU_PORT}"
-    export PANSOU_HOST PANSOU_PORT APP_PORT
+    export PORT="${BACKEND_PORT}"
+    export BACKEND_HOST BACKEND_PORT APP_PORT
+    export PANSOU_HOST="${BACKEND_HOST}" PANSOU_PORT="${BACKEND_PORT}"
     export CACHE_PATH="${TRIM_PKGVAR}/data/cache"
     export CACHE_ENABLED="${CACHE_ENABLED:-true}"
     export CACHE_TTL="${CACHE_TTL:-60}"
@@ -85,7 +86,7 @@ start_process() {
              "${TRIM_PKGVAR}/data/logs/backend"
 
     export_runtime_env
-    log_msg "starting backend PORT=${PANSOU_PORT} plugins=${ENABLED_PLUGINS}"
+    log_msg "starting backend PORT=${BACKEND_PORT} plugins=${ENABLED_PLUGINS}"
 
     cd "${TRIM_PKGVAR}/data" || return 1
     nohup "$BIN" >> "$BACKEND_LOG" 2>&1 &
@@ -93,7 +94,7 @@ start_process() {
 
     local i
     for i in $(seq 1 30); do
-        if curl -sf --max-time 2 "http://${PANSOU_HOST}:${PANSOU_PORT}/api/health" >/dev/null 2>&1; then
+        if curl -sf --max-time 2 "http://${BACKEND_HOST}:${BACKEND_PORT}/api/health" >/dev/null 2>&1; then
             break
         fi
         if [ "$i" -eq 30 ]; then
@@ -138,7 +139,7 @@ stop_process() {
     done
     # 兜底：按端口清掉残留（仅本机回环后端 + 网关端口）
     if command -v fuser >/dev/null 2>&1; then
-        fuser -k "${PANSOU_PORT}/tcp" >/dev/null 2>&1 || true
+        fuser -k "${BACKEND_PORT}/tcp" >/dev/null 2>&1 || true
         fuser -k "${APP_PORT}/tcp" >/dev/null 2>&1 || true
     fi
     rm -f "$GATEWAY_PID_FILE" "$BACKEND_PID_FILE"

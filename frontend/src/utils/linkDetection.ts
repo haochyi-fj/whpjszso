@@ -1,11 +1,12 @@
+import { loadLocal, saveLocal } from '@/utils/storage';
 import type {
   DetectionSettings,
   LinkHealthRecord,
   LinkHealthState,
 } from '@/types';
 
-export const DETECTION_SETTINGS_STORAGE_KEY = 'pansou_detection_settings';
-export const LINK_HEALTH_CACHE_STORAGE_KEY = 'pansou_link_health_cache';
+export const DETECTION_SETTINGS_STORAGE_KEY = 'detection_settings';
+export const LINK_HEALTH_CACHE_STORAGE_KEY = 'link_health_cache';
 
 const DEFAULT_DETECTION_SETTINGS: DetectionSettings = {
   enabled: false,
@@ -23,7 +24,7 @@ export const getDefaultDetectionSettings = (): DetectionSettings => ({
 
 export const loadDetectionSettings = (): DetectionSettings => {
   try {
-    const saved = localStorage.getItem(DETECTION_SETTINGS_STORAGE_KEY);
+    const saved = loadLocal(DETECTION_SETTINGS_STORAGE_KEY);
     if (!saved) return getDefaultDetectionSettings();
 
     const parsed = JSON.parse(saved);
@@ -36,7 +37,7 @@ export const loadDetectionSettings = (): DetectionSettings => {
 };
 
 export const persistDetectionSettings = (settings: DetectionSettings) => {
-  localStorage.setItem(DETECTION_SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+  saveLocal(DETECTION_SETTINGS_STORAGE_KEY, JSON.stringify(settings));
 };
 
 export const buildHealthCacheKey = (diskType: string, url: string) => {

@@ -1,70 +1,30 @@
 [
-    {
-        "stepTitle": "基础设置",
-        "items": [
-            {
-                "type": "tips",
-                "helpText": "安装后点击桌面图标即可搜索网盘资源。一般保持默认即可。"
-            },
-            {
-                "type": "text",
-                "field": "APP_PORT",
-                "label": "访问端口",
-                "initValue": "12668",
-                "helpText": "Web 界面端口，需未被其他应用占用。",
-                "rules": [
-                    { "required": true, "message": "请输入端口号" },
-                    { "pattern": "^[0-9]+$", "message": "端口号必须为数字" }
-                ]
-            },
-            {
-                "type": "text",
-                "field": "PROXY",
-                "label": "网络代理（可选）",
-                "initValue": "",
-                "helpText": "不需要请留空。格式如 http://127.0.0.1:1080 或 socks5://127.0.0.1:1080。",
-                "rules": []
-            }
+  {
+    "stepTitle": "基础设置",
+    "items": [
+      {
+        "type": "tips",
+        "helpText": "安装后点击桌面图标即可搜索网盘资源。"
+      },
+      {
+        "type": "text",
+        "field": "APP_PORT",
+        "label": "访问端口",
+        "initValue": "12668",
+        "helpText": "Web 界面端口，需未被其他应用占用。",
+        "rules": [
+          { "required": true, "message": "请输入端口号" },
+          { "pattern": "^[0-9]+$", "message": "端口号必须为数字" }
         ]
-    },
-    {
-        "stepTitle": "登录认证（可选）",
-        "items": [
-            {
-                "type": "tips",
-                "helpText": "仅内网使用可保持关闭。"
-            },
-            {
-                "type": "switch",
-                "field": "AUTH_ENABLED",
-                "label": "启用登录认证",
-                "initValue": "false"
-            },
-            {
-                "type": "text",
-                "field": "AUTH_USERS",
-                "label": "账号密码",
-                "initValue": "",
-                "helpText": "多个账号用英文逗号分隔，格式：user1:pass1,user2:pass2。仅在启用认证时生效。",
-                "rules": []
-            },
-            {
-                "type": "text",
-                "field": "AUTH_TOKEN_EXPIRY",
-                "label": "Token 有效期（小时）",
-                "initValue": "24",
-                "helpText": "仅在启用认证时生效。",
-                "rules": [
-                    { "pattern": "^[0-9]*$", "message": "请输入正整数" }
-                ]
-            },
-            {
-                "type": "password",
-                "field": "AUTH_JWT_SECRET",
-                "label": "密钥（可选）",
-                "helpText": "留空则自动生成。",
-                "rules": []
-            }
-        ]
-    }
+      },
+      {
+        "type": "text",
+        "field": "PROXY",
+        "label": "网络代理（可选）",
+        "initValue": "",
+        "helpText": "不需要请留空。格式如 http://127.0.0.1:1080 或 socks5://127.0.0.1:1080。",
+        "rules": []
+      }
+    ]
+  }
 ]

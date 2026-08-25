@@ -3,4 +3,11 @@ DATA_DIR="${TRIM_PKGVAR}/data"
 mkdir -p "${DATA_DIR}/cache" \
          "${DATA_DIR}/logs/backend"
 chmod +x "${TRIM_APPDEST}/bin/seekbox" "${TRIM_APPDEST}/bin/gateway.py" 2>/dev/null || true
+
+if [ -n "${TRIM_RUN_USERNAME}" ]; then
+    chown -R "${TRIM_RUN_USERNAME}:${TRIM_RUN_USERNAME}" "${TRIM_PKGVAR}" 2>/dev/null \
+        || chown -R "${TRIM_RUN_USERNAME}" "${TRIM_PKGVAR}" 2>/dev/null \
+        || true
+fi
+
 exit 0

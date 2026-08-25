@@ -5,6 +5,7 @@ import type { HealthStatus } from '@/api';
 import type { FilterConfig } from '@/types';
 import { Button, Input, Icons } from '@/components/ui';
 import FilterIcon from '@/components/icons/FilterIcon.vue';
+import { loadLocal } from '@/utils/storage';
 
 const keyword = ref('');
 const loading = ref(false);
@@ -25,8 +26,8 @@ const emit = defineEmits<{
 // 从配置中加载用户设置和后端默认配置
 const loadUserConfig = () => {
   try {
-    const savedPlugins = localStorage.getItem('pansou_plugins');
-    const savedDiskTypes = localStorage.getItem('pansou_disk_types');
+    const savedPlugins = loadLocal('plugins');
+    const savedDiskTypes = loadLocal('disk_types');
     
     // 如果用户已手动设置，使用用户设置
     if (savedPlugins !== null) {

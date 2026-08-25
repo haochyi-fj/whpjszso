@@ -15,8 +15,8 @@ from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from urllib.parse import parse_qs, urlencode, urlsplit
 
 WEBROOT = os.path.abspath(os.environ.get("WEBROOT", "./web"))
-BACKEND_HOST = os.environ.get("PANSOU_HOST", "127.0.0.1")
-BACKEND_PORT = int(os.environ.get("PANSOU_PORT", "18888"))
+BACKEND_HOST = os.environ.get("BACKEND_HOST", os.environ.get("PANSOU_HOST", "127.0.0.1"))
+BACKEND_PORT = int(os.environ.get("BACKEND_PORT", os.environ.get("PANSOU_PORT", "18888")))
 LISTEN_HOST = os.environ.get("GATEWAY_HOST", "0.0.0.0")
 LISTEN_PORT = int(os.environ.get("APP_PORT", os.environ.get("GATEWAY_PORT", "12668")))
 
@@ -69,7 +69,7 @@ PLUGIN_PROBE = {
     "yunso": "https://www.yunso.net",
     "zxzj": "https://www.zxzjys.com",
 }
-PING_UA = "Mozilla/5.0 (compatible; XunpanPing/1.0)"
+PING_UA = "Mozilla/5.0 (compatible; SeekBoxPing/1.0)"
 PING_TTL = 180
 PING_SLOW_MS = 1500
 SEARCH_KW = os.environ.get("PLUGIN_PROBE_KW", "电影")
