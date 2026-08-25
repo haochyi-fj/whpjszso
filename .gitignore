@@ -1,0 +1,15 @@
+.DS_Store
+*.fpk
+**/__pycache__/
+*.pyc
+
+# Vue 构建依赖，不要打进仓库或 FPK
+frontend/node_modules/
+frontend/dist/
+
+# 本机 NAS 部署脚本（含内网地址）
+scripts/deploy-to-nas.sh
+scripts/nas-ctl.sh
+
+# 含本机路径的调试笔记，不进公开库
+TESTING.md

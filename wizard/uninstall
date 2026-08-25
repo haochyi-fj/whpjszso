@@ -1,0 +1,21 @@
+[
+    {
+        "stepTitle": "卸载小白搜盘",
+        "items": [
+            {
+                "type": "tips",
+                "helpText": "卸载前请确认是否需要保留缓存和日志。"
+            },
+            {
+                "type": "radio",
+                "field": "data_action",
+                "label": "数据处理",
+                "initValue": "keep",
+                "options": [
+                    { "label": "保留数据（默认，重装后可恢复）", "value": "keep" },
+                    { "label": "删除全部数据", "value": "delete" }
+                ]
+            }
+        ]
+    }
+]

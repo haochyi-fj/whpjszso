@@ -1,0 +1,17 @@
+appname               = fn-seekbox
+version               = 1.3.5
+display_name          = 小白搜盘
+desc                  = <p>本地网盘资源搜索。支持百度、阿里云盘、夸克、天翼、UC、115、迅雷、123 等常见网盘链接。</p><p>安装完成后，在桌面点击图标即可使用。</p>
+platform              = x86
+source                = thirdparty
+maintainer            = qclaw
+maintainer_url        = https://github.com/kidoneself/fn-seekbox
+distributor           = qclaw
+distributor_url       = https://github.com/kidoneself/fn-seekbox
+os_min_version        = 1.1.8
+service_port          = 12668
+checkport             = false
+desktop_uidir         = ui
+desktop_applaunchname = fn-seekbox.main
+ctl_stop              = true
+changelog             = 界面按成品重做：暖色首页搜索，结果为左侧分类+白色面板，不再像未完成稿。

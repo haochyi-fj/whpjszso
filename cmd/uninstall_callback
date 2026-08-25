@@ -1,0 +1,10 @@
+#!/bin/bash
+if [ "${wizard_data_action}" = "delete" ]; then
+    echo "正在清理应用数据..."
+    rm -rf "${TRIM_PKGVAR:?}" 2>/dev/null || true
+    rm -rf "${TRIM_PKGHOME:?}" 2>/dev/null || true
+    echo "数据已删除。"
+else
+    echo "已保留数据目录，重新安装时可复用。"
+fi
+exit 0

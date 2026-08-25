@@ -1,0 +1,169 @@
+#!/bin/bash
+# 小白搜盘：后端二进制 + Python 网关（静态页 + 只走插件搜索）
+
+LOG_FILE="${TRIM_PKGVAR}/info.log"
+BACKEND_LOG="${TRIM_PKGVAR}/data/logs/backend/seekbox.log"
+GATEWAY_LOG="${TRIM_PKGVAR}/data/logs/gateway.log"
+BACKEND_PID_FILE="${TRIM_PKGVAR}/seekbox.pid"
+GATEWAY_PID_FILE="${TRIM_PKGVAR}/gateway.pid"
+
+BIN="${TRIM_APPDEST}/bin/seekbox"
+GATEWAY="${TRIM_APPDEST}/bin/gateway.py"
+WEBROOT="${TRIM_APPDEST}/web"
+
+PANSOU_HOST="127.0.0.1"
+PANSOU_PORT="18888"
+APP_PORT="${APP_PORT:-12668}"
+
+# 飞牛向导空字符串不会用镜像默认值；bash 的 :- 会。这 26 个是 NAS 直连实测能注册的。
+DEFAULT_PLUGINS="dyyjpro,duoduo,feikuai,gaoqing888,gying,hunhepan,ikantv,jutoushe,kkv,lingjisp,lou1,melost,ouge,panlian,qqpd,quark4k,quarksoo,quarktv,sousou,thepiratebay,wanou,weibo,xb6v,xiaozhang,yunso,zxzj"
+
+log_msg() {
+    mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null || true
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "${LOG_FILE}"
+}
+
+check_pid() {
+    local pid="$1"
+    [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null
+}
+
+status() {
+    local gpid bpid
+    gpid=$(cat "$GATEWAY_PID_FILE" 2>/dev/null || true)
+    bpid=$(cat "$BACKEND_PID_FILE" 2>/dev/null || true)
+    if check_pid "$gpid" && check_pid "$bpid"; then
+        return 0
+    fi
+    return 1
+}
+
+export_runtime_env() {
+    if [ -z "${ENABLED_PLUGINS}" ]; then
+        ENABLED_PLUGINS="${DEFAULT_PLUGINS}"
+    fi
+    export ENABLED_PLUGINS
+    export PORT="${PANSOU_PORT}"
+    export PANSOU_HOST PANSOU_PORT APP_PORT
+    export CACHE_PATH="${TRIM_PKGVAR}/data/cache"
+    export CACHE_ENABLED="${CACHE_ENABLED:-true}"
+    export CACHE_TTL="${CACHE_TTL:-60}"
+    export MAX_CONCURRENCY="${MAX_CONCURRENCY:-200}"
+    export MAX_PAGES="${MAX_PAGES:-30}"
+    export ASYNC_PLUGIN_ENABLED="${ASYNC_PLUGIN_ENABLED:-true}"
+    export AUTH_ENABLED="${AUTH_ENABLED:-false}"
+    export AUTH_USERS AUTH_TOKEN_EXPIRY AUTH_JWT_SECRET PROXY
+    export TZ="${TZ:-Asia/Shanghai}"
+    export WEBROOT GATEWAY_HOST="0.0.0.0"
+    # 后端空 CHANNELS 会回落到内置 TG 频道；给个占位即可。真正搜索由网关强制 src=plugin。
+    if [ -z "${CHANNELS}" ]; then
+        CHANNELS="-"
+    fi
+    export CHANNELS
+}
+
+start_process() {
+    if status; then
+        log_msg "already running"
+        return 0
+    fi
+    # 半残进程（只活了一个）先清掉再拉
+    stop_process
+
+    if [ ! -x "$BIN" ]; then
+        echo "找不到后端程序: ${BIN}" > "${TRIM_TEMP_LOGFILE}"
+        log_msg "ERROR: missing binary ${BIN}"
+        return 1
+    fi
+    if [ ! -f "$GATEWAY" ]; then
+        echo "找不到网关脚本: ${GATEWAY}" > "${TRIM_TEMP_LOGFILE}"
+        log_msg "ERROR: missing gateway ${GATEWAY}"
+        return 1
+    fi
+
+    mkdir -p "${TRIM_PKGVAR}/data/cache" \
+             "${TRIM_PKGVAR}/data/logs/backend"
+
+    export_runtime_env
+    log_msg "starting backend PORT=${PANSOU_PORT} plugins=${ENABLED_PLUGINS}"
+
+    cd "${TRIM_PKGVAR}/data" || return 1
+    nohup "$BIN" >> "$BACKEND_LOG" 2>&1 &
+    echo $! > "$BACKEND_PID_FILE"
+
+    local i
+    for i in $(seq 1 30); do
+        if curl -sf --max-time 2 "http://${PANSOU_HOST}:${PANSOU_PORT}/api/health" >/dev/null 2>&1; then
+            break
+        fi
+        if [ "$i" -eq 30 ]; then
+            echo "后端启动超时，见 ${BACKEND_LOG}" > "${TRIM_TEMP_LOGFILE}"
+            log_msg "ERROR: backend health timeout"
+            stop_process
+            return 1
+        fi
+        sleep 1
+    done
+
+    nohup python3 "$GATEWAY" >> "$GATEWAY_LOG" 2>&1 &
+    echo $! > "$GATEWAY_PID_FILE"
+    sleep 1
+
+    if ! status; then
+        echo "网关启动失败，见 ${GATEWAY_LOG}" > "${TRIM_TEMP_LOGFILE}"
+        log_msg "ERROR: gateway failed"
+        stop_process
+        return 1
+    fi
+    log_msg "started gateway=0.0.0.0:${APP_PORT}"
+    return 0
+}
+
+stop_process() {
+    local pid
+    for pid in $(cat "$GATEWAY_PID_FILE" "$BACKEND_PID_FILE" 2>/dev/null); do
+        if check_pid "$pid"; then
+            kill -TERM "$pid" 2>/dev/null || true
+        fi
+    done
+    local n=0
+    while status && [ "$n" -lt 8 ]; do
+        sleep 1
+        n=$((n + 1))
+    done
+    for pid in $(cat "$GATEWAY_PID_FILE" "$BACKEND_PID_FILE" 2>/dev/null); do
+        if check_pid "$pid"; then
+            kill -KILL "$pid" 2>/dev/null || true
+        fi
+    done
+    # 兜底：按端口清掉残留（仅本机回环后端 + 网关端口）
+    if command -v fuser >/dev/null 2>&1; then
+        fuser -k "${PANSOU_PORT}/tcp" >/dev/null 2>&1 || true
+        fuser -k "${APP_PORT}/tcp" >/dev/null 2>&1 || true
+    fi
+    rm -f "$GATEWAY_PID_FILE" "$BACKEND_PID_FILE"
+    log_msg "stopped"
+    return 0
+}
+
+case "$1" in
+start)
+    start_process
+    ;;
+stop)
+    stop_process
+    ;;
+status)
+    if status; then
+        exit 0
+    fi
+    exit 3
+    ;;
+restart)
+    stop_process
+    start_process
+    ;;
+*)
+    exit 1
+    ;;
+esac

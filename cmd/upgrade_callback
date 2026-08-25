@@ -1,0 +1,6 @@
+#!/bin/bash
+DATA_DIR="${TRIM_PKGVAR}/data"
+mkdir -p "${DATA_DIR}/cache" \
+         "${DATA_DIR}/logs/backend"
+chmod +x "${TRIM_APPDEST}/bin/seekbox" "${TRIM_APPDEST}/bin/gateway.py" 2>/dev/null || true
+exit 0

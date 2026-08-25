@@ -1,0 +1,15 @@
+#!/bin/bash
+# 安装完成后：准备数据目录；清掉旧版占用的端口
+
+DATA_DIR="${TRIM_PKGVAR}/data"
+mkdir -p "${DATA_DIR}/cache" \
+         "${DATA_DIR}/logs/backend"
+
+chmod +x "${TRIM_APPDEST}/bin/seekbox" "${TRIM_APPDEST}/bin/gateway.py" 2>/dev/null || true
+chmod -R 755 "${DATA_DIR}" 2>/dev/null || true
+
+if command -v docker >/dev/null 2>&1; then
+    docker rm -f fn-pansou >/dev/null 2>&1 || true
+fi
+
+exit 0

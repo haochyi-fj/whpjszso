@@ -1,0 +1,6 @@
+#!/bin/bash
+# 用户改完向导配置后重启进程以加载新环境变量
+if [ -x "/var/apps/${TRIM_APPNAME}/cmd/main" ]; then
+    "/var/apps/${TRIM_APPNAME}/cmd/main" restart
+fi
+exit 0
