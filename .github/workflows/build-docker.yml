@@ -1,0 +1,66 @@
+# ============================================================
+# 小白搜盘 自动构建 Docker 镜像 → 推送 GHCR (ghcr.io)
+#
+# 触发时机:
+#   - push 到 main 分支   → 构建并推送 latest 标签
+#   - push 版本 tag v*    → 构建并推送 v* 标签（如 v1.0.0）
+#   - 手动触发            → 仓库 Actions 页面点 Run workflow
+#
+# 用法（Fork 后无需改本文件）:
+#   1. Fork 本仓库到你的 GitHub 账号
+#   2. 等待 Actions 构建完成（仓库 Actions 标签页）
+#   3. 确认镜像可见（仓库 Packages 页若为 Private 改为 Public）
+#   4. NAS 上 docker compose 里写:
+#        image: ghcr.io/<你的GitHub用户名>/fn-seekbox:latest
+#      然后 docker compose up -d 即可拉取部署
+# ============================================================
+name: build-docker
+
+on:
+  push:
+    branches: [ "main" ]
+    tags: [ "v*" ]
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      # 1. 拉取源码
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      # 2. 解析本次要打的镜像标签
+      #    有 tag → 用 tag 作为版本号；push main → latest
+      - name: 解析版本标签
+        id: meta
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/}"
+          else
+            VERSION="latest"
+          fi
+          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+
+      # 3. 登录 GHCR（GITHUB_TOKEN 自动授权，无需额外配置密钥）
+      - name: 登录 GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # 4. 构建（仅 linux/amd64，后端二进制不支持 ARM）并推送
+      - name: 构建并推送镜像
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/fn-seekbox:latest
+            ghcr.io/${{ github.repository_owner }}/fn-seekbox:${{ steps.meta.outputs.version }}
