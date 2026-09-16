@@ -1,0 +1,26 @@
+name: export-image
+on:
+  workflow_dispatch:
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: 登录 GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ shturl.cc/iA }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: 拉取并导出镜像
+        run: |
+          docker pull ghcr.io/${{ github.repository_owner }}/fn-seekbox:latest
+          docker save -o fn-seekbox.tar ghcr.io/${{ github.repository_owner }}/fn-seekbox:latest
+      - name: 上传供下载
+        uses: actions/upload-artifact@v4
+        with:
+          name: fn-seekbox-image
+          path: fn-seekbox.tar
