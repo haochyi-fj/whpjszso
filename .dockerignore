@@ -1,0 +1,15 @@
+# 构建上下文排除：只保留 Docker 运行所需文件
+.git
+.gitignore
+*.fpk
+pack.sh
+build_icons.py
+manifest
+ICON.PNG
+ICON_256.PNG
+cmd
+config
+wizard
+
+# 前端源码与构建产物（镜像使用 app/web 预构建产物）
+frontend
